@@ -1,6 +1,8 @@
-
 package com.roshan.applecommerce.product.service;
 
+import com.roshan.applecommerce.category.entity.Category;
+import com.roshan.applecommerce.category.repository.CategoryRepository;
+import com.roshan.applecommerce.common.exception.CategoryNotFoundException;
 import com.roshan.applecommerce.common.exception.DuplicateSkuException;
 import com.roshan.applecommerce.common.exception.ProductNotFoundException;
 import com.roshan.applecommerce.product.dto.ProductRequest;
@@ -21,24 +23,38 @@ public class ProductService {
 
     private final ProductRepository repository;
     private final ProductMapper mapper;
+    private final CategoryRepository categoryRepository;
 
     public ProductService(
             ProductRepository repository,
-            ProductMapper mapper) {
+            ProductMapper mapper,
+            CategoryRepository categoryRepository) {
         this.repository = repository;
         this.mapper = mapper;
+        this.categoryRepository = categoryRepository;
     }
 
     @Transactional
     public ProductResponse create(ProductRequest request) {
+
         String sku = request.sku().trim();
 
+        // Validate SKU uniqueness.
         if (repository.existsBySku(sku)) {
             throw new DuplicateSkuException(sku);
         }
 
+        // Find the requested category.
+        Category category = findCategory(request.categoryId());
+
+        // Create product and assign its category.
         Product product = mapper.toEntity(request);
-        return mapper.toResponse(repository.save(product));
+        product.assignCategory(category);
+
+        // Save and return the response.
+        Product savedProduct = repository.save(product);
+
+        return mapper.toResponse(savedProduct);
     }
 
     @Transactional(readOnly = true)
@@ -48,7 +64,10 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public Page<ProductResponse> getAll(
-            int page, int size, String sortBy, String direction) {
+            int page,
+            int size,
+            String sortBy,
+            String direction) {
 
         if (page < 0 || size < 1 || size > 100) {
             throw new IllegalArgumentException(
@@ -66,6 +85,7 @@ public class ProductService {
         }
 
         Sort.Direction sortDirection;
+
         try {
             sortDirection = Sort.Direction.fromString(direction);
         } catch (IllegalArgumentException ex) {
@@ -86,18 +106,28 @@ public class ProductService {
 
     @Transactional
     public ProductResponse update(
-            Long id, ProductRequest request) {
+            Long id,
+            ProductRequest request) {
 
         Product product = findProduct(id);
+
         String sku = request.sku().trim();
 
+        // Prevent another product from using the same SKU.
         if (repository.existsBySkuAndIdNot(sku, id)) {
             throw new DuplicateSkuException(sku);
         }
 
-        mapper.updateEntity(product, request);
+        // Find the new category before updating the product.
+        Category category = findCategory(request.categoryId());
 
-        return mapper.toResponse(repository.save(product));
+        // Update product fields and category.
+        mapper.updateEntity(product, request);
+        product.assignCategory(category);
+
+        Product updatedProduct = repository.save(product);
+
+        return mapper.toResponse(updatedProduct);
     }
 
     @Transactional
@@ -109,5 +139,10 @@ public class ProductService {
     private Product findProduct(Long id) {
         return repository.findById(id)
                 .orElseThrow(() -> new ProductNotFoundException(id));
+    }
+
+    private Category findCategory(Long categoryId) {
+        return categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new CategoryNotFoundException(categoryId));
     }
 }

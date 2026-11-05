@@ -1,4 +1,3 @@
-
 package com.roshan.applecommerce.product.dto;
 
 import java.math.BigDecimal;
@@ -11,6 +10,8 @@ public record ProductResponse(
         String description,
         BigDecimal price,
         Integer stock,
+        Long categoryId,
+        String categoryName,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

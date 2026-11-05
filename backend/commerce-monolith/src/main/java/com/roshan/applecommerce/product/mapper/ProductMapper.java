@@ -1,4 +1,3 @@
-
 package com.roshan.applecommerce.product.mapper;
 
 import com.roshan.applecommerce.product.dto.ProductRequest;
@@ -19,9 +18,7 @@ public class ProductMapper {
         );
     }
 
-    public void updateEntity(
-            Product product,
-            ProductRequest request) {
+    public void updateEntity(Product product, ProductRequest request) {
         product.update(
                 request.name().trim(),
                 request.sku().trim(),
@@ -32,6 +29,15 @@ public class ProductMapper {
     }
 
     public ProductResponse toResponse(Product product) {
+
+        Long categoryId = product.getCategory() != null
+                ? product.getCategory().getId()
+                : null;
+
+        String categoryName = product.getCategory() != null
+                ? product.getCategory().getName()
+                : null;
+
         return new ProductResponse(
                 product.getId(),
                 product.getName(),
@@ -39,6 +45,8 @@ public class ProductMapper {
                 product.getDescription(),
                 product.getPrice(),
                 product.getStock(),
+                categoryId,
+                categoryName,
                 product.getCreatedAt(),
                 product.getUpdatedAt()
         );

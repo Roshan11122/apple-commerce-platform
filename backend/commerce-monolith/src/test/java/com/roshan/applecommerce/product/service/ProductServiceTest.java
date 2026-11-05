@@ -1,5 +1,8 @@
 package com.roshan.applecommerce.product.service;
 
+import com.roshan.applecommerce.category.entity.Category;
+import com.roshan.applecommerce.category.repository.CategoryRepository;
+import com.roshan.applecommerce.common.exception.CategoryNotFoundException;
 import com.roshan.applecommerce.common.exception.DuplicateSkuException;
 import com.roshan.applecommerce.common.exception.ProductNotFoundException;
 import com.roshan.applecommerce.product.dto.ProductRequest;
@@ -31,12 +34,16 @@ class ProductServiceTest {
     @Mock
     private ProductMapper mapper;
 
+    @Mock
+    private CategoryRepository categoryRepository;
+
     @InjectMocks
     private ProductService service;
 
     private ProductRequest request;
     private Product product;
     private ProductResponse response;
+    private Category category;
 
     @BeforeEach
     void setUp() {
@@ -45,7 +52,8 @@ class ProductServiceTest {
                 "MACBOOKAIR001",
                 "Apple laptop",
                 new BigDecimal("99900.00"),
-                10
+                10,
+                1L
         );
 
         product = new Product(
@@ -56,6 +64,7 @@ class ProductServiceTest {
                 request.stock()
         );
 
+        category = mock(Category.class);
         response = mock(ProductResponse.class);
     }
 
@@ -63,6 +72,9 @@ class ProductServiceTest {
     void createProductSuccessfully() {
         when(repository.existsBySku("MACBOOKAIR001"))
                 .thenReturn(false);
+
+        when(categoryRepository.findById(1L))
+                .thenReturn(Optional.of(category));
 
         when(mapper.toEntity(request))
                 .thenReturn(product);
@@ -76,8 +88,10 @@ class ProductServiceTest {
         ProductResponse result = service.create(request);
 
         assertNotNull(result);
+        assertSame(category, product.getCategory());
 
         verify(repository).existsBySku("MACBOOKAIR001");
+        verify(categoryRepository).findById(1L);
         verify(repository).save(product);
         verify(mapper).toResponse(product);
     }
@@ -93,6 +107,24 @@ class ProductServiceTest {
         );
 
         verify(repository, never()).save(any(Product.class));
+        verifyNoInteractions(categoryRepository);
+    }
+
+    @Test
+    void createProductWithMissingCategoryThrowsException() {
+        when(repository.existsBySku("MACBOOKAIR001"))
+                .thenReturn(false);
+
+        when(categoryRepository.findById(1L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                CategoryNotFoundException.class,
+                () -> service.create(request)
+        );
+
+        verify(repository, never()).save(any(Product.class));
+        verifyNoInteractions(mapper);
     }
 
     @Test
@@ -122,6 +154,82 @@ class ProductServiceTest {
         );
 
         verify(mapper, never()).toResponse(any(Product.class));
+    }
+
+    @Test
+    void updateProductSuccessfully() {
+        when(repository.findById(1L))
+                .thenReturn(Optional.of(product));
+
+        when(repository.existsBySkuAndIdNot("MACBOOKAIR001", 1L))
+                .thenReturn(false);
+
+        when(categoryRepository.findById(1L))
+                .thenReturn(Optional.of(category));
+
+        when(repository.save(product))
+                .thenReturn(product);
+
+        when(mapper.toResponse(product))
+                .thenReturn(response);
+
+        ProductResponse result = service.update(1L, request);
+
+        assertNotNull(result);
+        assertSame(category, product.getCategory());
+
+        verify(mapper).updateEntity(product, request);
+        verify(categoryRepository).findById(1L);
+        verify(repository).save(product);
+        verify(mapper).toResponse(product);
+    }
+
+    @Test
+    void updateProductWithDuplicateSkuThrowsException() {
+        when(repository.findById(1L))
+                .thenReturn(Optional.of(product));
+
+        when(repository.existsBySkuAndIdNot("MACBOOKAIR001", 1L))
+                .thenReturn(true);
+
+        assertThrows(
+                DuplicateSkuException.class,
+                () -> service.update(1L, request)
+        );
+
+        verify(repository, never()).save(any(Product.class));
+        verifyNoInteractions(categoryRepository);
+    }
+
+    @Test
+    void updateProductWithMissingCategoryThrowsException() {
+        when(repository.findById(1L))
+                .thenReturn(Optional.of(product));
+
+        when(repository.existsBySkuAndIdNot("MACBOOKAIR001", 1L))
+                .thenReturn(false);
+
+        when(categoryRepository.findById(1L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                CategoryNotFoundException.class,
+                () -> service.update(1L, request)
+        );
+
+        verify(repository, never()).save(any(Product.class));
+        verifyNoInteractions(mapper);
+    }
+
+    @Test
+    void deleteExistingProductSuccessfully() {
+        when(repository.findById(1L))
+                .thenReturn(Optional.of(product));
+
+        service.delete(1L);
+
+        verify(repository).findById(1L);
+        verify(repository).delete(product);
     }
 
     @Test

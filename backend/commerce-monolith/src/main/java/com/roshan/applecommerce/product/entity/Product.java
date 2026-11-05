@@ -1,7 +1,8 @@
-
 package com.roshan.applecommerce.product.entity;
 
+import com.roshan.applecommerce.category.entity.Category;
 import jakarta.persistence.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -36,6 +37,12 @@ public class Product {
     @Column(nullable = false)
     private Integer stock;
 
+    // Many products can belong to one category.
+    // Nullable temporarily for compatibility with existing products.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -51,6 +58,7 @@ public class Product {
             String description,
             BigDecimal price,
             Integer stock) {
+
         this.name = name;
         this.sku = sku;
         this.description = description;
@@ -94,6 +102,10 @@ public class Product {
         return stock;
     }
 
+    public Category getCategory() {
+        return category;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -102,12 +114,17 @@ public class Product {
         return updatedAt;
     }
 
+    public void assignCategory(Category category) {
+        this.category = category;
+    }
+
     public void update(
             String name,
             String sku,
             String description,
             BigDecimal price,
             Integer stock) {
+
         this.name = name;
         this.sku = sku;
         this.description = description;
