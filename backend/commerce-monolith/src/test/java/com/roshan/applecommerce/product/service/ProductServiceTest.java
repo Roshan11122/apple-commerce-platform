@@ -1,5 +1,10 @@
 package com.roshan.applecommerce.product.service;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import java.util.List;
 import com.roshan.applecommerce.category.entity.Category;
 import com.roshan.applecommerce.category.repository.CategoryRepository;
 import com.roshan.applecommerce.common.exception.CategoryNotFoundException;
@@ -236,7 +241,7 @@ class ProductServiceTest {
     void getAllRejectsNegativePage() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.getAll(-1, 10, "id", "ASC")
+                () -> service.getAll(-1, 10, "id", "ASC", null)
         );
 
         verifyNoInteractions(repository);
@@ -246,7 +251,7 @@ class ProductServiceTest {
     void getAllRejectsPageSizeAbove100() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.getAll(0, 101, "id", "ASC")
+                () -> service.getAll(0, 101, "id", "ASC", null)
         );
 
         verifyNoInteractions(repository);
@@ -256,9 +261,86 @@ class ProductServiceTest {
     void getAllRejectsUnsupportedSortField() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> service.getAll(0, 10, "password", "ASC")
+                () -> service.getAll(0, 10, "password", "ASC", null)
         );
 
         verifyNoInteractions(repository);
+    }
+
+    @Test
+    void getAllProductsSuccessfully() {
+
+        Page<Product> productPage =
+                new PageImpl<>(List.of(product));
+
+        when(repository.findAll(any(Pageable.class)))
+                .thenReturn(productPage);
+
+        when(mapper.toResponse(product))
+                .thenReturn(response);
+
+        Page<ProductResponse> result =
+                service.getAll(0, 10, "id", "ASC", null);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertSame(response, result.getContent().get(0));
+
+        verify(repository).findAll(any(Pageable.class));
+        verify(repository, never())
+                .findAllByCategory_Id(anyLong(), any(Pageable.class));
+    }
+
+    @Test
+    void getAllProductsByCategorySuccessfully() {
+
+        Page<Product> productPage =
+                new PageImpl<>(List.of(product));
+
+        when(repository.findAllByCategory_Id(
+                eq(1L),
+                any(Pageable.class)
+        )).thenReturn(productPage);
+
+        when(mapper.toResponse(product))
+                .thenReturn(response);
+
+        Page<ProductResponse> result =
+                service.getAll(0, 10, "id", "ASC", 1L);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertSame(response, result.getContent().get(0));
+
+        verify(repository).findAllByCategory_Id(
+                eq(1L),
+                any(Pageable.class)
+        );
+
+        verify(repository, never()).findAll(any(Pageable.class));
+    }
+
+    @Test
+    void getAllProductsByCategoryReturnsEmptyPageWhenNoProductsExist() {
+        Page<Product> emptyPage = Page.empty();
+
+        when(repository.findAllByCategory_Id(
+                eq(999L),
+                any(Pageable.class)
+        )).thenReturn(emptyPage);
+
+        Page<ProductResponse> result =
+                service.getAll(0, 10, "id", "ASC", 999L);
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        assertEquals(0, result.getTotalElements());
+
+        verify(repository).findAllByCategory_Id(
+                eq(999L),
+                any(Pageable.class)
+        );
+
+        verifyNoInteractions(mapper);
     }
 }

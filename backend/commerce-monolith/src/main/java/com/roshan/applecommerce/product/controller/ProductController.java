@@ -1,4 +1,3 @@
-
 package com.roshan.applecommerce.product.controller;
 
 import com.roshan.applecommerce.product.dto.ProductRequest;
@@ -6,13 +5,16 @@ import com.roshan.applecommerce.product.dto.ProductResponse;
 import com.roshan.applecommerce.product.service.ProductService;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/products")
+@Validated
 public class ProductController {
 
     private final ProductService service;
@@ -38,8 +40,18 @@ public class ProductController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "id") String sortBy,
-            @RequestParam(defaultValue = "ASC") String direction) {
-        return service.getAll(page, size, sortBy, direction);
+            @RequestParam(defaultValue = "ASC") String direction,
+            @RequestParam(required = false)
+            @Positive(message = "Category ID must be positive")
+            Long categoryId) {
+
+        return service.getAll(
+                page,
+                size,
+                sortBy,
+                direction,
+                categoryId
+        );
     }
 
     @PutMapping("/{id}")

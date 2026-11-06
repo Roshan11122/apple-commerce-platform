@@ -67,7 +67,8 @@ public class ProductService {
             int page,
             int size,
             String sortBy,
-            String direction) {
+            String direction,
+            Long categoryId) {
 
         if (page < 0 || size < 1 || size > 100) {
             throw new IllegalArgumentException(
@@ -100,8 +101,18 @@ public class ProductService {
                 Sort.by(sortDirection, sortBy)
         );
 
-        return repository.findAll(pageable)
-                .map(mapper::toResponse);
+        Page<Product> products;
+
+        if (categoryId != null) {
+            products = repository.findAllByCategory_Id(
+                    categoryId,
+                    pageable
+            );
+        } else {
+            products = repository.findAll(pageable);
+        }
+
+        return products.map(mapper::toResponse);
     }
 
     @Transactional
